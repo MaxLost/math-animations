@@ -42,15 +42,37 @@ class WalkersSchemeDemo(Scene):
             labels.add(Text(str(i)).next_to(blocks[i - 1], DOWN, buff=0.4))
         self.add(labels)
 
+COLORS = [RED, GREEN, BLUE, YELLOW]
+
+class RectangleWithNumber(VGroup):
+
+    def __init__(self, scene, color, value, width=1, height=1, **kwargs):
+        super().__init__(**kwargs)
+        self.scene = scene
+
+        rectangle = Rectangle(height=height, width=width)
+        rectangle.set_fill(color, opacity=0.7)
+        self.rectangle = rectangle
+        self.add(rectangle)
+
+        number = DecimalNumber(number=value, color=color)
+        self.number = number
+        number.align_to(rectangle.center)
+        self.add(number)
+
+    def horizontal_resize(self, k):
+        return(self.rectangle.stretch_to_fit_width(k * self.rectangle.width), self.number.move_to(self.rectangle.center))
+
+
 
 
 class CustomRectangleWithSpacer(VGroup):
 
-    def __init__(self, scene, width=1, height=1, spacer_width=0.1, **kwargs):
+    def __init__(self, scene, first_event, width=1, height=1, spacer_width=0.1, **kwargs):
         super().__init__(**kwargs)
         self.scene = scene
 
-        # Create a rectangle
+        # Create a outline rectangle
         rectangle = Rectangle()
         self.rectangle = rectangle
         rectangle.set_width(width)
@@ -59,20 +81,35 @@ class CustomRectangleWithSpacer(VGroup):
 
         # Create a spacer inside the rectangle
         spacer = Line(UP, DOWN)
-        spacer.set_width(spacer_width)
-        spacer.set_color(BLUE)  # Customize spacer color if needed
-        spacer.move_to(rectangle.get_right())
+        spacer.set_length(spacer_width)
+        spacer.set_color(WHITE)  # Customize spacer color if needed
+        self.spacer_vertical_offset = [0, 0.05, 0]
+        spacer.move_to(rectangle.get_right() + self.spacer_vertical_offset)
         self.add(spacer)
         self.spacer = spacer  # Save spacer as an attribute
 
-    def move_spacer(self, position):
-        return self.spacer.animate.move_to(self.rectangle.get_left() + (self.rectangle.get_right() - self.rectangle.get_left()) * position)
+        # Setup representation of event probabilities inside rectangle
+        self.first_event_id = first_event
+        self.first_event = RectangleWithNumber(scene, COLORS[self.first_event_id], value = 0.25)
+        self.add(self.first_event)
+        self.second_event_id = first_event
+        self.second_event = RectangleWithNumber(scene, WHITE, value = 0)
+        self.add(self.second_event)
+
+    def resize_spacer(self, k):
+        left_side = self.rectangle.get_left()
+        right_side = self.rectangle.get_right()
+        spacer_anim = self.spacer.animate.move_to(left_side + self.spacer_vertical_offset + (right_side - left_side) * k)
+        first_event_anim = self.first_event.horizontal_resize(k)
+        second_event_anim = self.second_event.horizontal_resize(1 + k)
+        return (spacer_anim, first_event_anim, second_event_anim)
+        
         
 
 class SpacerMovement(Scene):
     def construct(self):
         # Create custom rectangle with spacer
-        custom_rectangles = [CustomRectangleWithSpacer(scene=self, width=2, height=1, spacer_width=0.05) for _ in range (4)]
+        custom_rectangles = [CustomRectangleWithSpacer(scene=self, first_event=i, width=2, height=1, spacer_width=1.05) for i in range (4)]
         rectangle_group = VGroup(*custom_rectangles).arrange(buff=0)
         rectangle_group.move_to(ORIGIN)
 
@@ -80,6 +117,6 @@ class SpacerMovement(Scene):
         self.add(rectangle_group)
 
         self.wait(1)
-        self.play(rectangle_group[0].move_spacer(0.5))
+        self.play(*rectangle_group[0].resize_spacer(0.5))
 
         self.wait(1)
