@@ -49,34 +49,58 @@ class CustomRectangleWithSpacer(VGroup):
     def __init__(self, scene, first_event, width=1, height=1, **kwargs):
         super().__init__(**kwargs)
         self.scene = scene
+        self.id = first_event
 
         # Create a outline rectangle
         self.rectangle = Rectangle(width=width, height=height)
-        self.rectangle.set_width(width)
-        self.rectangle.set_height(height)
         self.add(self.rectangle)
 
+        self.label = DecimalNumber(number=self.id + 1, color=COLORS[self.id], num_decimal_places=0)
+        self.label.next_to(self.rectangle, UP)
+        self.add(self.label)
+
         # Setup representation of event probabilities inside rectangle
-        self.id = first_event
-        self.fe_rect = Rectangle(width=self.width, height=self.height)
+        self.fe_rect = Rectangle(width=width, height=height)
         self.fe_rect.set_fill(color=COLORS[self.id], opacity=0.5)
         self.fe_rect.move_to(self.rectangle.get_center())
         self.add(self.fe_rect)
-
-        self.se_rect = Rectangle(width=0.0, height=self.height)
-        self.se_rect.move_to(self.rectangle.get_edge_center(RIGHT))
+        self.se_rect = Rectangle(
+            width=0,
+            height=self.rectangle.height,
+        ).move_to(self.rectangle.get_edge_center(RIGHT))
         self.add(self.se_rect)
 
-        self.numbers = VGroup(*[DecimalNumber(number=0.0, color=COLORS[i], num_decimal_places=3) for i in range(4)])
+        self.numbers = VGroup(
+                DecimalNumber(number=0.25, color=COLORS[self.id], num_decimal_places=3),
+                DecimalNumber(number=0.0, color=WHITE, num_decimal_places=3)
+            )
         self.numbers.arrange(DOWN, buff=0.4).next_to(self.rectangle, DOWN, buff=0.4)
         self.add(self.numbers)
 
     def resize_events(self, new_value, second_event_id):
+
+        old_fe_rect = self.fe_rect
+        self.fe_rect = Rectangle(
+            width=self.rectangle.width * new_value / 0.25,
+            height=self.rectangle.height,
+        ).set_fill(color=COLORS[self.id], opacity=0.5)
+        self.fe_rect.move_to(self.rectangle.get_edge_center(LEFT) + [self.rectangle.width * new_value / (0.25 * 2), 0, 0])
+
+        prev_width = self.se_rect.width
+        old_se_rect = self.se_rect
+        self.scene.remove(self.se_rect)
+        self.se_rect = Rectangle(
+            width=self.rectangle.width * (0.25 - new_value) / 0.25,
+            height=self.rectangle.height,
+        ).set_fill(color=COLORS[second_event_id], opacity=0.5)
+        self.se_rect.move_to(self.rectangle.get_edge_center(RIGHT) - [self.rectangle.width * (0.25 - new_value) / (0.25 * 2), 0, 0])
+
         return (
             self.numbers[self.id].animate.set_value(new_value),
-            self.fe_rect.animate.stretch_about_point(new_value / 0.25 * self.fe_rect.width, 0, self.fe_rect.get_edge_center(LEFT)),
-            self.se_rect.animate.set_fill(color=COLORS[second_event_id], opacity=0.7)
-                .stretch_about_point(1 + new_value / self.fe_rect.width, 0, self.se_rect.get_edge_center(RIGHT)),
+            self.numbers[second_event_id].animate.set_fill(color=COLORS[second_event_id])
+                .set_value(0.25 - new_value),
+            ReplacementTransform(old_fe_rect, self.fe_rect),
+            ReplacementTransform(old_se_rect, self.se_rect),
         )
         
         
@@ -92,6 +116,10 @@ class SpacerMovement(Scene):
         self.add(rectangle_group)
 
         self.wait(1)
+        self.play(*rectangle_group[0].resize_events(0.05, 1))
+
+        self.wait(3)
+
         self.play(*rectangle_group[0].resize_events(0.125, 1))
 
         self.wait(3)
