@@ -1,50 +1,11 @@
 from manim import *
 
-class ProbabilitySchemeAsBarChart(Scene):
-    def construct(self):
-        probabilities = [0.18, 0.48, 0.31, 0.03]
+COLORS = [RED, GREEN, BLUE, YELLOW, WHITE]
+N = 4
+PROBABILITIES = [0.18, 0.48, 0.31, 0.03] 
+RESIZE_TIME = 2
 
-        scheme = BarChart(
-            values=probabilities,
-            bar_names=["1", "2", "3", "4"],
-            y_range = [0, 0.5, 0.1],
-            y_length=4,
-            x_length=8,
-            bar_fill_opacity=0.75,
-            bar_colors=[BLUE_A, RED, YELLOW, GREEN],
-            x_axis_config = {"font_size": 32},
-            y_axis_config = {"font_size": 32},
-        )
-        c_bar_lbls = scheme.get_bar_labels(font_size=36)
-
-        self.play(Create(scheme), Create(c_bar_lbls))
-        self.pause()
-
-class WalkersSchemeDemo(Scene):
-    def construct(self):
-        EVENT_NUMBER = 4
-        BLOCK_WIDTH = 10 / EVENT_NUMBER
-        
-        blocks = VGroup(*[Rectangle(width=BLOCK_WIDTH) for _ in range(0, 4)])
-        #blocks.arrange_in_grid(buff=0, rows=1, cols=EVENT_NUMBER)
-        self.add(blocks)
-
-        spacers = VGroup()
-        for i in range(0, 4):
-            RL = blocks[0].get_right() + blocks[0].get_bottom()
-            RU = blocks[0].get_right() + blocks[0].get_top()
-            self.add(Dot(RL, color=GREEN), Dot(RU, color=GREEN))
-            spacers.add(Line(blocks[i].get_right() + blocks[i].get_bottom(), blocks[i].get_right() + blocks[i].get_top(), color=RED).scale(1.2))
-        self.add(spacers)
-
-        labels=VGroup()
-        for i in range(1, 5):
-            labels.add(Text(str(i)).next_to(blocks[i - 1], DOWN, buff=0.4))
-        self.add(labels)
-
-COLORS = [RED, GREEN, BLUE, YELLOW]
-
-class CustomRectangleWithSpacer(VGroup):
+class CustomRectangleWithZones(VGroup):
 
     def __init__(self, scene, first_event, width=1, height=1, **kwargs):
         super().__init__(**kwargs)
@@ -71,7 +32,7 @@ class CustomRectangleWithSpacer(VGroup):
         self.add(self.se_rect)
 
         self.numbers = VGroup(
-                DecimalNumber(number=0.25, color=COLORS[self.id], num_decimal_places=3),
+                DecimalNumber(number=1/N, color=COLORS[self.id], num_decimal_places=3),
                 DecimalNumber(number=0.0, color=WHITE, num_decimal_places=3)
             )
         self.numbers.arrange(DOWN, buff=0.4).next_to(self.rectangle, DOWN, buff=0.4)
@@ -81,45 +42,84 @@ class CustomRectangleWithSpacer(VGroup):
 
         old_fe_rect = self.fe_rect
         self.fe_rect = Rectangle(
-            width=self.rectangle.width * new_value / 0.25,
+            width=self.rectangle.width * new_value / (1/N),
             height=self.rectangle.height,
         ).set_fill(color=COLORS[self.id], opacity=0.5)
-        self.fe_rect.move_to(self.rectangle.get_edge_center(LEFT) + [self.rectangle.width * new_value / (0.25 * 2), 0, 0])
+        self.fe_rect.move_to(self.rectangle.get_edge_center(LEFT) + [self.rectangle.width * new_value / ((1/N) * 2), 0, 0])
 
         prev_width = self.se_rect.width
         old_se_rect = self.se_rect
         self.scene.remove(self.se_rect)
         self.se_rect = Rectangle(
-            width=self.rectangle.width * (0.25 - new_value) / 0.25,
+            width=self.rectangle.width * ((1/N)- new_value) / (1/N),
             height=self.rectangle.height,
         ).set_fill(color=COLORS[second_event_id], opacity=0.5)
-        self.se_rect.move_to(self.rectangle.get_edge_center(RIGHT) - [self.rectangle.width * (0.25 - new_value) / (0.25 * 2), 0, 0])
+        self.se_rect.move_to(self.rectangle.get_edge_center(RIGHT) - [self.rectangle.width * ((1/N) - new_value) / ((1/N) * 2), 0, 0])
 
         return (
-            self.numbers[self.id].animate.set_value(new_value),
-            self.numbers[second_event_id].animate.set_fill(color=COLORS[second_event_id])
-                .set_value(0.25 - new_value),
-            ReplacementTransform(old_fe_rect, self.fe_rect),
-            ReplacementTransform(old_se_rect, self.se_rect),
-        )
-        
-        
+            self.numbers[0].animate(run_time=RESIZE_TIME).set_value(new_value),
+            self.numbers[1].animate(run_time=RESIZE_TIME).set_fill(color=COLORS[second_event_id])
+                .set_value((1/N) - new_value),
+            ReplacementTransform(old_fe_rect, self.fe_rect, run_time=RESIZE_TIME),
+            ReplacementTransform(old_se_rect, self.se_rect, run_time=RESIZE_TIME),
+        )      
 
-class SpacerMovement(Scene):
+class AliasMethodAnimation(Scene):
     def construct(self):
-        # Create custom rectangle with spacer
-        custom_rectangles = [CustomRectangleWithSpacer(scene=self, first_event=i, width=3, height=1) for i in range (4)]
+
+        custom_rectangles = [CustomRectangleWithZones(scene=self, first_event=i, width=3, height=1) for i in range (N)]
         rectangle_group = VGroup(*custom_rectangles).arrange(buff=0)
         rectangle_group.move_to(ORIGIN).shift(UP)
-
-        # Show the custom rectangle with spacer
         self.add(rectangle_group)
+        
+        labels = [f"P({i+1})" for i in range(N)]
+        probs = [Variable(PROBABILITIES[i], MathTex(labels[i]), num_decimal_places=3) for i in range(N)]
+        for i in range(N):
+            probs[i].label.set_color(COLORS[i])
+            probs[i].value.set_color(COLORS[i])
+
+        probs = VGroup(*probs).arrange(buff=0.7)
+        probs.move_to(ORIGIN).shift(3*DOWN)
+        self.add(probs)
 
         self.wait(1)
-        self.play(*rectangle_group[0].resize_events(0.05, 1))
 
-        self.wait(3)
+        n = len(PROBABILITIES)
+        self.alias = [0] * n
+        self.prob = [0] * n
 
-        self.play(*rectangle_group[0].resize_events(0.125, 1))
+        scaled_probabilities = [prob * n for prob in PROBABILITIES]
+        small = []
+        large = []
+
+        for i, prob in enumerate(scaled_probabilities):
+            if prob < 1:
+                small.append(i)
+            else:
+                large.append(i)
+
+        while small and large:
+            small_index = small.pop()
+            large_index = large.pop()
+
+            self.prob[small_index] = scaled_probabilities[small_index]
+            self.alias[small_index] = large_index
+            scaled_probabilities[large_index] = (scaled_probabilities[large_index] + scaled_probabilities[small_index]) - 1
+            
+            #Animate probability change for one block
+            self.play(*custom_rectangles[small_index].resize_events(self.prob[small_index] / N, large_index), 
+                      Indicate(probs[small_index], scale_factor=1.18, color=COLORS[small_index], run_time=RESIZE_TIME),
+                      Indicate(probs[large_index], scale_factor=1.18, color=COLORS[large_index], run_time=RESIZE_TIME)
+                      )
+            self.wait(2)
+
+            if scaled_probabilities[large_index] < 1:
+                small.append(large_index)
+            else:
+                large.append(large_index)
+        
+        for remaining in small + large:
+            self.prob[remaining] = 1
+            self.play(*custom_rectangles[remaining].resize_events(self.prob[remaining] / N, -1))
 
         self.wait(3)
