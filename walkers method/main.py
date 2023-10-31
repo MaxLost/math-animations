@@ -1,4 +1,5 @@
 from manim import *
+from functools import cmp_to_key
 
 COLORS = [RED, GREEN, BLUE, YELLOW, WHITE]
 N = 4
@@ -97,6 +98,9 @@ class AliasMethodAnimation(Scene):
                 small.append(i)
             else:
                 large.append(i)
+
+        # sorted(small, key=cmp_to_key(lambda x, y: PROBABILITIES[x] < PROBABILITIES[y]))
+        # sorted(large, key=cmp_to_key(lambda x, y: PROBABILITIES[x] > PROBABILITIES[y]))
 
         while small and large:
             small_index = small.pop()
